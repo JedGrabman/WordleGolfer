@@ -135,13 +135,13 @@ def tree_encoder(tree):
     return code
 
 
-def encode_249(input):
-    foo = '	 !"#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ¡¢£¤¥¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ'
+def encode_123(input):
+    foo = '	 !"#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~'
     results = ''
     while(input > 0):
-        remainder = input % 249
+        remainder = input % 123
         results = results + foo[remainder]
-        input = input // 249
+        input = input // 123
     return(results)
 
 vowels = set('aeiou')
@@ -162,10 +162,11 @@ for i in range(32):
     codes_array_raw[i] = tree_encoder(tree)
     tree_array[i] = tree
 
-codes_array = [encode_249(code) for code in codes_array_raw]
+codes_array = [encode_123(code) for code in codes_array_raw]
+#sum([math.log(code, 2) for code in codes_array_raw]) #89244
 word_count_bits_max = math.ceil(math.log(max([word_count for word_count in word_counts]), 2))
 words_per_tree_code_raw = 0
 for i in reversed(range(32)):
     words_per_tree_code_raw = words_per_tree_code_raw * 2**12 + word_counts[i]
-words_per_tree_code = encode_249(words_per_tree_code_raw)
+words_per_tree_code = encode_123(words_per_tree_code_raw)
 
