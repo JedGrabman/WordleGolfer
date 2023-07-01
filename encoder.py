@@ -158,12 +158,13 @@ for i in range(32):
     counter = 0
     while not tree.done:
         counter = counter + 1
-        tree.add_tree()
+        tree.add_tree(True)
     codes_array_raw[i] = tree_encoder(tree)
     tree_array[i] = tree
 
 codes_array = [encode_123(code) for code in codes_array_raw]
-#sum([math.log(code, 2) for code in codes_array_raw]) #89244
+all([tree_array[i].bits_minimum == math.ceil(math.log(codes_array_raw[i], 2)) for i in range(32)])
+sum([math.ceil(math.log(code, 2)) for code in codes_array_raw]) #83641
 word_count_bits_max = math.ceil(math.log(max([word_count for word_count in word_counts]), 2))
 words_per_tree_code_raw = 0
 for i in reversed(range(32)):
