@@ -56,11 +56,6 @@ def encode_words(letter_sets, words):
     return (num_bits, encoding)
 
 def words_to_indexes(letter_groups, words, place_per_position):
-    # print("letter_sets:", [''.join(sorted(letter_set)) for letter_set in letter_sets])
-    # print("words:", words)
-    # print("num_words:", len(words))
-    # print("bits_per_word:", bits_per_word)
-    # print("\n")
     result_array = []
     for word in words:
         word_sum = 0
@@ -72,7 +67,6 @@ def words_to_indexes(letter_groups, words, place_per_position):
     return(result_array)
 
 def indexes_to_words(word_indexes, letter_groups, place_per_position):
-    #print('start indexes_to_words')
     result_words = []
     for i in range(len(word_indexes)):
         word_num = word_indexes[i]
@@ -84,12 +78,6 @@ def indexes_to_words(word_indexes, letter_groups, place_per_position):
             word = word + letter_groups[j][letter_index]
             word_num = word_num % place_per_position[j]
         result_words.append(word)
-        if word in {'aajed', 'scacs', 'aulcs'}:
-            print('start_word_num', start_word_num)
-            print('word:', word)
-            print('word_num', word_num)
-            print('letter_groups', letter_groups)
-            print('place_per_position', place_per_position)
     #print('end indexes_to_words')
     return(result_words)
 
@@ -106,10 +94,6 @@ def tree_encoder(tree):
         code = (code << 1) + 1
         code = (code << num_bits) | code_words
         code = (code << 3) | 7
-        #  print('letter_groups:', [''.join(sorted(tree.letters[i])) for i in range(len(tree.letters))])
-        #  print('word_count:', len(tree.words_valid))
-        #  print(sorted(tree.words_valid))
-        #  print('')
 
     else:
         words_bits = math.floor(math.log(len(tree.words_valid), 2)) + 1
@@ -149,13 +133,20 @@ words_set = {word for word in words}
 tree = wordle_tree(letters_array, words_set)
 tree.create_subtree(set('aeiou'), 0)
 tree.subtree_large.create_subtree(set('aeiou'), 1)
-tree.subtree_small.create_subtree(set('aeiou'), 1)
+tree.subtree_large.subtree_large.create_subtree(set('aeiou'), 2)
+tree.subtree_large.subtree_large.subtree_large.create_subtree(set('aeiou'), 3)
 tree.subtree_large.subtree_small.create_subtree(set('aeiou'), 2)
-tree.subtree_small.subtree_large.create_subtree(set('aeiou'), 2)
 tree.subtree_large.subtree_small.subtree_large.create_subtree(set('aeiou'), 3)
+tree.subtree_large.subtree_small.subtree_small.create_subtree(set('aeiou'), 3)
+
+tree.subtree_small.create_subtree(set('aeiou'), 1)
+tree.subtree_small.subtree_large.create_subtree(set('aeiou'), 2)
+tree.subtree_small.subtree_large.subtree_large.create_subtree(set('aeiou'), 3)
 tree.subtree_small.subtree_large.subtree_small.create_subtree(set('aeiou'), 3)
+
 while not tree.done:
     tree.add_tree(True) # non-deterministic
+
 tree_code = tree_encoder(tree)
 tree_code_123 = encode_123(tree_code)
 
