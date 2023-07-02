@@ -144,30 +144,30 @@ def encode_123(input):
         input = input // 123
     return(results)
 
-vowels = set('aeiou')
-consonants = set('bcdfghjklmnpqrstvwxyz')
-large_letters_array = [0] * 32
-tree_array = [0] * 32
-codes_array_raw = [0] * 32
-word_counts = [0] * 32
-for i in range(32):
-    letters_array = [vowels.copy() if (i >> j) & 1 else consonants.copy() for j in range(5)]
-    words_valid = {word for word in words if all([word[j] in letters_array[j] for j in range(5)])}
-    word_counts[i] = len(words_valid)
-    tree = wordle_tree(letters_array, words_valid)
-    counter = 0
-    while not tree.done:
-        counter = counter + 1
-        tree.add_tree(True)
-    codes_array_raw[i] = tree_encoder(tree)
-    tree_array[i] = tree
+letters_array = [set('abcdefghijklmnopqrstuvwxyz') for _ in range(5)]
+words_set = {word for word in words}
+tree = wordle_tree(letters_array, words_set)
+tree.create_subtree(set('aeiou'), 0)
+tree.subtree_large.create_subtree(set('aeiou'), 1)
+tree.subtree_small.create_subtree(set('aeiou'), 1)
+tree.subtree_large.subtree_small.create_subtree(set('aeiou'), 2)
+tree.subtree_small.subtree_large.create_subtree(set('aeiou'), 2)
+tree.subtree_large.subtree_small.subtree_large.create_subtree(set('aeiou'), 3)
+tree.subtree_small.subtree_large.subtree_small.create_subtree(set('aeiou'), 3)
+while not tree.done:
+    tree.add_tree(True) # non-deterministic
+tree_code = tree_encoder(tree)
+tree_code_123 = encode_123(tree_code)
 
-codes_array = [encode_123(code) for code in codes_array_raw]
-all([tree_array[i].bits_minimum == math.ceil(math.log(codes_array_raw[i], 2)) for i in range(32)])
-sum([math.ceil(math.log(code, 2)) for code in codes_array_raw]) #83641
-word_count_bits_max = math.ceil(math.log(max([word_count for word_count in word_counts]), 2))
-words_per_tree_code_raw = 0
-for i in reversed(range(32)):
-    words_per_tree_code_raw = words_per_tree_code_raw * 2**12 + word_counts[i]
-words_per_tree_code = encode_123(words_per_tree_code_raw)
+print(math.ceil(math.log(tree_code, 2))) # 83403
+print(tree_code_123)
+
+tree_set = set([tree])
+tree_count = 0
+while tree_set:
+    tree_count = tree_count + 1
+    tree_to_analyze = tree_set.pop()
+    if tree_to_analyze.subtree_large:
+        tree_set.add(tree_to_analyze.subtree_large)
+        tree_set.add(tree_to_analyze.subtree_small)
 

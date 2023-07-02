@@ -199,7 +199,7 @@ class wordle_tree:
                                 for new_let_0 in letter_set_0:
                                     letter_set_0_reduced = letter_set_0.copy().difference(new_let_0)
                                     ent_score_0 = self.bit_cross_section(letter_set_0_reduced, letter_set_1, pos_0, pos_1)
-                                    continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0_reduced]
+                                    continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0_reduced] # occasional error
                                     ent_score_0 = ent_score_0 + overhead_always + math.floor(math.log(len(continuing_words), 2))
                                     if ent_score_0 < best_ent_score_0:
                                         best_ent_score_0 = ent_score_0
