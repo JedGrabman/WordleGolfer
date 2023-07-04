@@ -5,6 +5,7 @@ from wordle_tree import wordle_tree
 import math
 import operator as op
 from functools import reduce
+import pickle
 
 word_list = open('word_list.js')
 words = word_list.readlines()
@@ -146,14 +147,8 @@ tree.subtree_small.subtree_large.subtree_small.create_subtree(set('aeiou'), 3)
 while not tree.done:
     tree.add_tree(True) # non-deterministic
 
-tree_code = tree_encoder(tree)
-tree_code_123 = encode_123(tree_code)
-
-print(math.ceil(math.log(tree_code, 2))) # 82681
-print(math.ceil(math.log(tree_code, 123))) # 11909
-print(tree_code_123)
-
 tree_set = set([tree])
+tree_set_all = set()
 tree_count = 0
 while tree_set:
     tree_count = tree_count + 1
@@ -161,4 +156,55 @@ while tree_set:
     if tree_to_analyze.subtree_large:
         tree_set.add(tree_to_analyze.subtree_large)
         tree_set.add(tree_to_analyze.subtree_small)
+    tree_set_all.add(tree_to_analyze)
 
+def flatten_letters(letter_groups):
+    return tuple(''.join(sorted(letter_group)) for letter_group in letter_groups)
+
+#tree_dict = dict()
+file = open('tree_dict.txt', 'rb')
+tree_dict = pickle.load(file)
+file.close()
+for tree in tree_set_all:
+    tree_letters = flatten_letters(tree.letters)
+    tree_bits = tree.bits_minimum
+    if tree.tree_letter_group:
+        tree_letter_group = ''.join(sorted(tree.tree_letter_group))
+    else:
+        tree_letter_group = None
+    tree_info = (tree_bits, tree.tree_split_position, tree_letter_group)
+    if tree_letters in tree_dict:
+        min_bits_seen = tree_dict[tree_letters][0]
+        if tree_bits < min_bits_seen:
+            print('updating!')
+            tree_dict[tree_letters] = tree_info
+    else:
+        tree_dict[tree_letters] = tree_info
+
+def tree_constructor(tree):
+    words_valid = {word for word in words if all(word[i] in tree.letters[i] for i in range(5))}
+    flat_letters = flatten_letters(tree.letters)
+    if flat_letters in tree_dict:
+        tree_split_position = tree_dict[flat_letters][1]
+        if tree_split_position is None:
+            if tree.parent:
+                tree.parent.update_bits_minimum()
+        else:
+            tree_letter_group = set(tree_dict[flat_letters][2])
+            tree.create_subtree(tree_letter_group, tree_split_position)
+            tree_constructor(tree.subtree_small)
+            tree_constructor(tree.subtree_large)
+
+tree = wordle_tree([set('abcdefghijklmnopqrstuvwxyz') for _ in range(5)], {word for word in words})
+tree_constructor(tree)
+
+file = open('tree_dict.txt', 'wb')
+pickle.dump(tree_dict, file)
+file.close()
+tree_code = tree_encoder(tree)
+tree_code = tree_code - 2**math.floor(math.log(tree_code, 2))
+tree_code_123 = encode_123(tree_code)
+
+print(math.ceil(math.log(tree_code, 2))) # 82664
+print(math.ceil(math.log(tree_code, 123))) # 11907
+print(tree_code_123)
