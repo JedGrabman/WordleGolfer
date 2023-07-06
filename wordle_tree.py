@@ -33,7 +33,7 @@ class wordle_tree:
         self.tree_split_position = None
         self.tree_letter_group = None
         self.done = False
-        for i in range(5):
+        for i in range(len(letters)):
             for word in words_valid:
                 if word[i] not in letters[i]:
                     raise ValueError('impossible word present', letters, word, self)
@@ -138,8 +138,8 @@ class wordle_tree:
         pos_1_best = -1
         letter_set_0_best = set()
         letter_set_1_best = set()
-        for pos_0 in range(5):
-            for pos_1 in range(5):
+        for pos_0 in range(len(self.letters)):
+            for pos_1 in range(len(self.letters)):
                 if pos_0 != pos_1 and len(self.letters[pos_0]) > 1 and len(self.letters[pos_1]) > 1:
                  #   letter_pair_counts = Counter([word[pos_0] + word[pos_1] for word in self.words_valid])
                  #   letter_pair_max = max(letter_pair_counts, key = letter_pair_counts.get)
@@ -164,7 +164,7 @@ class wordle_tree:
                             best_new_let_0 = None
                             best_ent_score_0 = min_bits
                             for new_let_0 in self.letters[pos_0].difference(letter_set_0):
-                                letter_set_0_extended = letter_set_0.copy().union(new_let_0)
+                                letter_set_0_extended = letter_set_0.copy().union([new_let_0])
                                 ent_score_0 = self.bit_cross_section(letter_set_0_extended, letter_set_1, pos_0, pos_1)
                                 continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0_extended]
                                 ent_score_0 = ent_score_0 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
@@ -176,7 +176,7 @@ class wordle_tree:
                             pos_1_counter = Counter([word[pos_1] for word in self.words_valid if word[pos_0] in letter_set_0 and word[pos_1] not in letter_set_1])
                             if len(pos_1_counter) > 0:
                                 new_let_1 = max(pos_1_counter, key=pos_1_counter.get)
-                                letter_set_1_extended = letter_set_1.copy().union(new_let_1)
+                                letter_set_1_extended = letter_set_1.copy().union([new_let_1])
                                 ent_score_1 = self.bit_cross_section(letter_set_0, letter_set_1_extended, pos_0, pos_1)
                                 continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0]
                                 ent_score_1 = ent_score_1 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
@@ -197,10 +197,13 @@ class wordle_tree:
                             best_let_0 = None
                             if len(letter_set_0) > 1:
                                 for new_let_0 in letter_set_0:
-                                    letter_set_0_reduced = letter_set_0.copy().difference(new_let_0)
+                                    letter_set_0_reduced = letter_set_0.copy().difference([new_let_0])
                                     ent_score_0 = self.bit_cross_section(letter_set_0_reduced, letter_set_1, pos_0, pos_1)
                                     continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0_reduced] # occasional error
-                                    ent_score_0 = ent_score_0 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
+                                    if len(continuing_words) > 0:
+                                        ent_score_0 = ent_score_0 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
+                                    else: 
+                                        ent_score_0 = ent_score_0 + overhead_always + 2
                                     if ent_score_0 < best_ent_score_0:
                                         best_ent_score_0 = ent_score_0
                                         best_let_0 = new_let_0
@@ -212,7 +215,7 @@ class wordle_tree:
                                 pos_1_counter.update({let:0 for let in letter_set_1})
                                 pos_1_counter.update([word[pos_1] for word in self.words_valid if word[pos_0] in letter_set_0 and word[pos_1] in letter_set_1])
                                 new_let_1 = min(pos_1_counter, key=pos_1_counter.get)
-                                letter_set_1_reduced = letter_set_1.copy().difference(new_let_1)
+                                letter_set_1_reduced = letter_set_1.copy().difference([new_let_1])
                                 ent_score_1 = self.bit_cross_section(letter_set_0, letter_set_1_reduced, pos_0, pos_1)
                                 continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0]
                                 ent_score_1 = ent_score_1 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
@@ -244,8 +247,8 @@ class wordle_tree:
         letter_best = ''
         index_best = -1
         for i in range(len(self.letters)):
-            letters_ordered = ''.join(sorted([letter for letter in self.letters[i]], 
-                                              key = lambda key: len([word for word in self.words_valid if word[i] == key]))[::-1])
+            letters_ordered = sorted([letter for letter in self.letters[i]], 
+                                              key = lambda key: len([word for word in self.words_valid if word[i] == key]))[::-1]
             for j in range(len(letters_ordered)):
                 letter_group = letters_ordered[:j]
                 words_sublist_count = len([word for word in self.words_valid if word[i] in letter_group])

@@ -165,7 +165,21 @@ def flatten_letters(letter_groups):
 file = open('tree_dict.txt', 'rb')
 tree_dict = pickle.load(file)
 file.close()
-for tree in tree_set_all:
+
+def tree_dict_try_update(tree):
+    if tree.subtree_large:
+        tree.update_bits_minimum()
+    bits_min_start = tree.bits_minimum
+    print('tree_dict_try_update: bits_min_start = {}'.format(bits_min_start))
+
+    if tree.subtree_large:
+        subtree_large_letters = flatten_letters(tree.subtree_large.letters)
+        if tree.subtree_large.bits_minimum > tree_dict[subtree_large_letters][0]:
+            tree_constructor(tree.subtree_large)
+        subtree_small_letters = flatten_letters(tree.subtree_small.letters)
+        if tree.subtree_small.bits_minimum > tree_dict[subtree_small_letters][0]:
+            tree_constructor(tree.subtree_small)
+
     tree_letters = flatten_letters(tree.letters)
     tree_bits = tree.bits_minimum
     if tree.tree_letter_group:
@@ -175,11 +189,24 @@ for tree in tree_set_all:
     tree_info = (tree_bits, tree.tree_split_position, tree_letter_group)
     if tree_letters in tree_dict:
         min_bits_seen = tree_dict[tree_letters][0]
+        print('min_bits_seen: {}'.format(min_bits_seen))
         if tree_bits < min_bits_seen:
-            print('updating!')
             tree_dict[tree_letters] = tree_info
+            print('tree updated')
+            print('checking subtrees:')
+            if tree.subtree_large:
+                tree_dict_try_update(tree.subtree_large)
+                tree_dict_try_update(tree.subtree_small)
+            print('checking parent:')
+            if tree.parent:
+                tree_dict_try_update(tree.parent)
     else:
         tree_dict[tree_letters] = tree_info
+    bits_min_end = tree.bits_minimum
+    assert bits_min_end <= bits_min_start
+
+for tree in tree_set_all:
+    tree_dict_try_update(tree)
 
 def tree_constructor(tree):
     words_valid = {word for word in words if all(word[i] in tree.letters[i] for i in range(5))}
@@ -192,8 +219,9 @@ def tree_constructor(tree):
         else:
             tree_letter_group = set(tree_dict[flat_letters][2])
             tree.create_subtree(tree_letter_group, tree_split_position)
-            tree_constructor(tree.subtree_small)
-            tree_constructor(tree.subtree_large)
+            if tree.bits_minimum > tree_dict[flatten_letters(tree.letters)][0]:
+                tree_constructor(tree.subtree_small)
+                tree_constructor(tree.subtree_large)
 
 tree = wordle_tree([set('abcdefghijklmnopqrstuvwxyz') for _ in range(5)], {word for word in words})
 tree_constructor(tree)
@@ -205,6 +233,81 @@ tree_code = tree_encoder(tree)
 tree_code = tree_code - 2**math.floor(math.log(tree_code, 2))
 tree_code_123 = encode_123(tree_code)
 
-print(math.ceil(math.log(tree_code, 2))) # 82664
-print(math.ceil(math.log(tree_code, 123))) # 11907
+print(math.ceil(math.log(tree_code, 2))) # 82602
+print(math.ceil(math.log(tree_code, 123))) # 11898
 print(tree_code_123)
+
+tree_set = set()
+trees_to_analyze = set([tree])
+while trees_to_analyze:
+    tree_working = trees_to_analyze.pop()
+    if tree_working.subtree_small is not None:
+        trees_to_analyze.add(tree_working.subtree_small)
+        trees_to_analyze.add(tree_working.subtree_large)
+    tree_set.add(tree_working)
+
+tree_inversion_candidates = set()
+for tree in tree_set:
+    if tree.subtree_large is not None:
+        if tree.subtree_large.subtree_large is not None:
+            tree_split_pos = tree.tree_split_position
+            if tree.subtree_large.tree_split_position == tree_split_pos:
+                tree_inversion_candidates.add((tree, tree_split_pos, tree.subtree_large, ''.join(sorted(tree.letters[tree_split_pos])), ''.join(sorted(tree.tree_letter_group)), ''.join(sorted(tree.subtree_large.tree_letter_group))))
+            if tree.subtree_small.tree_split_position == tree_split_pos:
+                tree_inversion_candidates.add((tree, tree_split_pos, tree.subtree_small, ''.join(sorted(tree.letters[tree_split_pos])), ''.join(sorted(tree.tree_letter_group)), ''.join(sorted(tree.subtree_small.tree_letter_group))))
+
+def trim_tree(tree):
+    tree.tree_letter_group = None
+    tree.tree_split_position = None
+    tree.subtree_small = None
+    tree.subtree_large = None
+    if tree.parent:
+        tree.parent.update_bits_minimum()
+    tree.done = False
+
+def make_tree_split(tree, letter_group, sub_letter_group, pos):
+    start_bits_min = tree.bits_minimum
+    trim_tree(tree)
+    tree.create_subtree(letter_group, pos)
+    if tree.subtree_small.letters[pos] == letter_group:
+        subtree_split = tree.subtree_small
+    else:
+        subtree_split = tree.subtree_large
+    subtree_split.create_subtree(sub_letter_group, pos)
+    tree_dict_try_update(subtree_split.subtree_small)
+
+    tree_constructor(subtree_split.subtree_small)
+    tree_dict_try_update(subtree_split.subtree_large)
+    tree_constructor(subtree_split.subtree_large)
+    tree_dict_try_update(tree.subtree_small)
+    tree_constructor(tree.subtree_small)
+    tree_dict_try_update(tree.subtree_large)
+    tree_constructor(tree.subtree_large)
+    tree_dict_try_update(tree)
+    tree_constructor(tree)
+    end_bits_min = tree.bits_minimum
+    assert end_bits_min <= start_bits_min, '{} is greater than {}'.format(end_bits_min, start_bits_min)
+    
+counter = 0
+for combo in tree_inversion_candidates:
+    counter += 1
+    print('counter: {} / {}'.format(counter, len(tree_inversion_candidates)))
+    tree = combo[0]
+    start_bits_min = tree.bits_minimum
+    tree_split_pos = combo[1]
+    sub_group_1 = set(combo[3]).difference(set(combo[4]))
+    sub_group_2 = set(combo[4])
+    sub_group_3 = set(combo[5])
+    if sub_group_1.intersection(sub_group_3):
+        sub_group_1 = sub_group_1.difference(sub_group_3)
+    else:
+        sub_group_2 = sub_group_2.difference(sub_group_3)
+    assert len(sub_group_1) + len(sub_group_2) + len(sub_group_3) == len(tree.letters[tree_split_pos])
+    make_tree_split(tree, sub_group_1.union(sub_group_2), sub_group_1, tree_split_pos)
+    make_tree_split(tree, sub_group_1.union(sub_group_2), sub_group_2, tree_split_pos)
+    make_tree_split(tree, sub_group_1.union(sub_group_3), sub_group_1, tree_split_pos)
+    make_tree_split(tree, sub_group_1.union(sub_group_3), sub_group_3, tree_split_pos)
+    make_tree_split(tree, sub_group_2.union(sub_group_3), sub_group_2, tree_split_pos)
+    make_tree_split(tree, sub_group_2.union(sub_group_3), sub_group_3, tree_split_pos)
+    end_bits_min = tree.bits_minimum
+    assert end_bits_min <= start_bits_min
