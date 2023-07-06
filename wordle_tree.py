@@ -1,6 +1,7 @@
+#import os
+#os.chdir(r'C:\Users\Jed\Desktop\Programming\Wordle\Wordle_golf')
+
 import copy
-import os
-os.chdir(r'C:\Users\Jed\Desktop\Programming\Wordle\Wordle_golf')
 import math
 import operator as op
 from functools import reduce
