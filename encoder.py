@@ -73,19 +73,19 @@ def indexes_to_words(word_indexes, letter_groups, place_per_position):
 
 #(subtree_large)([-1]subtree_small)(words in subtree_small)(letter_flags)(split_position)
 #1(words_encoding)(111)
-def tree_encoder(tree):
-    code = 0
+def tree_encoder(tree, code = 0):
     if tree.subtree_large is None:
         bits_per_word = math.ceil(math.log(tree.possibilities, 2))
         words_encoding = encode_words(tree.letters, tree.words_valid)
         num_bits = words_encoding[0]
         code_words = words_encoding[1]
-
-        code = (code << 1) + 1
+        
         code = (code << num_bits) | code_words
-        code = (code << 3) | 7
+        code = code * 6 + 5
 
     else:
+        code = tree_encoder(tree.subtree_large, code)
+        code = tree_encoder(tree.subtree_small, code)
         words_bits = math.floor(math.log(len(tree.words_valid), 2)) + 1
         code = code << words_bits
         code = code + len(tree.subtree_small.words_valid)
@@ -96,16 +96,7 @@ def tree_encoder(tree):
             if flag:
                 code = code + 1
 
-        for i in range(2, -1, -1):
-            code = code << 1
-            code = code + (tree.tree_split_position >> i) % 2
-
-        code_subtree_small = tree_encoder(tree.subtree_small)
-        code_subtree_large = tree_encoder(tree.subtree_large)
-        code_bits = 3 + len(tree.letters[tree.tree_split_position]) + words_bits
-        code = (code_subtree_small << code_bits) | code
-        code_bits = math.floor(math.log(code, 2))
-        code = (code_subtree_large << code_bits) | (code - 2**code_bits)
+        code = code * 6 + tree.tree_split_position
     return code
 
 
@@ -139,9 +130,8 @@ while not tree.done:
 
 
 tree_code = tree_encoder(tree)
-tree_code = tree_code - 2**math.floor(math.log(tree_code, 2))
 tree_code_123 = encode_123(tree_code)
 
-print(math.ceil(math.log(tree_code, 2))) # 82602 for utilities.get_full_tree()
-print(math.ceil(math.log(tree_code, 123))) # 11898
+print(math.ceil(math.log(tree_code, 2))) # 82218 for utilities.get_full_tree()
+print(math.ceil(math.log(tree_code, 123))) # 11843
 print(tree_code_123)
