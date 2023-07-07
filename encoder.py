@@ -43,8 +43,7 @@ def encode_words(letter_sets, words):
     encoding = encode_choice(word_nums)
     possibilities = place_per_position[0] * base_per_position[0]
     combo_num = ncr(possibilities, len(words))
-    num_bits = math.ceil(math.log(combo_num, 2))
-    return (num_bits, encoding)
+    return (combo_num, encoding)
 
 def words_to_indexes(letter_groups, words, place_per_position):
     result_array = []
@@ -57,16 +56,15 @@ def words_to_indexes(letter_groups, words, place_per_position):
         result_array.append(word_sum)
     return(result_array)
 
-#(subtree_large)([-1]subtree_small)(words in subtree_small)(letter_flags)(split_position)
+#(subtree_large)(subtree_small)(words in subtree_small)(letter_flags)(split_position)
 #1(words_encoding)(leaf flag)
 def tree_encoder(tree, code = 0):
     if tree.subtree_large is None:
         bits_per_word = math.ceil(math.log(tree.possibilities, 2))
         words_encoding = encode_words(tree.letters, tree.words_valid)
-        num_bits = words_encoding[0]
+        combos = words_encoding[0]
         code_words = words_encoding[1]
-        
-        code = (code << num_bits) | code_words
+        code = code * combos + code_words
         code = code << 1 | 1
 
     else:
@@ -87,6 +85,7 @@ def tree_encoder(tree, code = 0):
 
 
 def encode_123(input):
+    # all 7 bit characters except null, new line, return, apostrophe and backslash
     foo = '	 !"#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~'
     results = ''
     while(input > 0):
@@ -118,6 +117,6 @@ while not tree.done:
 tree_code = tree_encoder(tree)
 tree_code_123 = encode_123(tree_code)
 
-print(math.ceil(math.log(tree_code, 2))) # 81855 for utilities.get_full_tree()
-print(math.ceil(math.log(tree_code, 123))) # 11791
+print(math.ceil(math.log(tree_code, 2))) # 81671 for utilities.get_full_tree()
+print(math.ceil(math.log(tree_code, 123))) # 11764
 print(tree_code_123)
