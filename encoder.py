@@ -57,22 +57,8 @@ def words_to_indexes(letter_groups, words, place_per_position):
         result_array.append(word_sum)
     return(result_array)
 
-def indexes_to_words(word_indexes, letter_groups, place_per_position):
-    result_words = []
-    for i in range(len(word_indexes)):
-        word_num = word_indexes[i]
-        start_word_num = word_num
-
-        word = ''
-        for j in range(len(letter_groups)):
-            letter_index = word_num // place_per_position[j]
-            word = word + letter_groups[j][letter_index]
-            word_num = word_num % place_per_position[j]
-        result_words.append(word)
-    return(result_words)
-
 #(subtree_large)([-1]subtree_small)(words in subtree_small)(letter_flags)(split_position)
-#1(words_encoding)(111)
+#1(words_encoding)(leaf flag)
 def tree_encoder(tree, code = 0):
     if tree.subtree_large is None:
         bits_per_word = math.ceil(math.log(tree.possibilities, 2))
@@ -81,7 +67,7 @@ def tree_encoder(tree, code = 0):
         code_words = words_encoding[1]
         
         code = (code << num_bits) | code_words
-        code = code * 6 + 5
+        code = code << 1 | 1
 
     else:
         code = tree_encoder(tree.subtree_large, code)
@@ -95,8 +81,8 @@ def tree_encoder(tree, code = 0):
             code = code << 1
             if flag:
                 code = code + 1
-
-        code = code * 6 + tree.tree_split_position
+        code = code * 5 + tree.tree_split_position
+        code = code << 1
     return code
 
 
@@ -132,6 +118,6 @@ while not tree.done:
 tree_code = tree_encoder(tree)
 tree_code_123 = encode_123(tree_code)
 
-print(math.ceil(math.log(tree_code, 2))) # 82218 for utilities.get_full_tree()
-print(math.ceil(math.log(tree_code, 123))) # 11843
+print(math.ceil(math.log(tree_code, 2))) # 81855 for utilities.get_full_tree()
+print(math.ceil(math.log(tree_code, 123))) # 11791
 print(tree_code_123)
