@@ -60,7 +60,6 @@ def words_to_indexes(letter_groups, words, place_per_position):
 #1(words_encoding)(leaf flag)
 def tree_encoder(tree, code = 0):
     if tree.subtree_large is None:
-        bits_per_word = math.ceil(math.log(tree.possibilities, 2))
         words_encoding = encode_words(tree.letters, tree.words_valid)
         combos = words_encoding[0]
         code_words = words_encoding[1]
@@ -70,8 +69,7 @@ def tree_encoder(tree, code = 0):
     else:
         code = tree_encoder(tree.subtree_large, code)
         code = tree_encoder(tree.subtree_small, code)
-        words_bits = math.floor(math.log(len(tree.words_valid), 2)) + 1
-        code = code << words_bits
+        code = code * (len(tree.words_valid) + 1)
         code = code + len(tree.subtree_small.words_valid)
 
         letter_flags = [letter in tree.tree_letter_group for letter in sorted(tree.letters[tree.tree_split_position])][::-1]
@@ -113,10 +111,9 @@ tree.subtree_small.subtree_large.subtree_small.create_subtree(set('aeiou'), 3)
 while not tree.done:
     tree.add_tree(True) # non-deterministic
 
-
 tree_code = tree_encoder(tree)
 tree_code_123 = encode_123(tree_code)
 
-print(math.ceil(math.log(tree_code, 2))) # 81671 for utilities.get_full_tree()
-print(math.ceil(math.log(tree_code, 123))) # 11764
+print(math.ceil(math.log(tree_code, 2))) # 81462 for utilities.get_full_tree()
+print(math.ceil(math.log(tree_code, 123))) # 11734
 print(tree_code_123)
