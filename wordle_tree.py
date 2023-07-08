@@ -7,11 +7,6 @@ import operator as op
 from functools import reduce
 from collections import Counter
 
-word_list = open('word_list.js')
-words = word_list.readlines()
-word_list.close()
-words = [word[0:5] for word in words]
-
 def ncr(n, r):
     r = min(r, n-r)
     numer = reduce(op.mul, range(n, n-r, -1), 1)
@@ -25,8 +20,6 @@ class wordle_tree:
             raise ValueError('Tried to add letters with no length!', letters)
 
         self.words_valid = words_valid
-        self.possibilities = self.find_possibilities()
-        self.bits_minimum = self.find_bits()
         #self.branching_bits_penalty = 30
         self.subtree_large = None
         self.subtree_small = None
@@ -34,15 +27,20 @@ class wordle_tree:
         self.tree_split_position = None
         self.tree_letter_group = None
         self.done = False
+        self.leaf = True
+        self.possibilities = self.find_possibilities()
+        self.bits_minimum = self.find_bits()
         for i in range(len(letters)):
             for word in words_valid:
                 if word[i] not in letters[i]:
                     raise ValueError('impossible word present', letters, word, self)
 
+    def set_done(self, done = True):
+        self.done = done
 
     def add_tree(self, depth_2 = False):
         if len(self.words_valid) == 0:
-            self.done = True
+            self.set_done()
         if self.done:
             return
         if self.subtree_large is None:
@@ -56,7 +54,7 @@ class wordle_tree:
             elif not self.subtree_small.done:
                 self.subtree_small.add_tree(depth_2)
             else:
-                self.done = True
+                self.set_done()
 
 
     def find_possibilities(self):
@@ -67,10 +65,13 @@ class wordle_tree:
 
 
     def find_bits(self):
-        return math.ceil(wordle_tree.bit_calculator(len(self.words_valid), self.possibilities)) + self.tree_pos_overhead() + 1
+        return wordle_tree.bit_calculator(len(self.words_valid), self.possibilities) + self.tree_pos_overhead()
 
     def tree_pos_overhead(self):
-        return math.log(6, 2)
+        if self.leaf:
+            return 1
+        else:
+            return 1 + math.log(5, 2)
 
     @classmethod
     def bit_calculator(self, desired, total):
@@ -84,7 +85,7 @@ class wordle_tree:
         else:
           #  print('total:', total)
            # print('desired:', desired)
-            total_bits = math.ceil(math.log(ncr(total, desired), 2))
+            total_bits = math.log(ncr(total, desired), 2)
            # total_bits = -(desired * math.log(desired/total, 2) + (total - desired) * math.log((total - desired)/total, 2))
         return total_bits
 
@@ -92,8 +93,8 @@ class wordle_tree:
     def bit_extended_calculator(self, desired, total, desired_g1, total_g1):
         if desired - desired_g1 > total - total_g1:
             raise ValueError(desired, total, desired_g1, total_g1)
-        bits_g1 = math.ceil(wordle_tree.bit_calculator(desired_g1, total_g1))
-        bits_g2 = math.ceil(wordle_tree.bit_calculator(desired - desired_g1, total - total_g1))
+        bits_g1 = wordle_tree.bit_calculator(desired_g1, total_g1)
+        bits_g2 = wordle_tree.bit_calculator(desired - desired_g1, total - total_g1)
         return bits_g1 + bits_g2
 
     def bit_cross_section(self, letter_set_0, letter_set_1, position_0, position_1):
@@ -111,12 +112,12 @@ class wordle_tree:
 
         letter_group_words_valid = {word for word in self.words_valid if word[position] in letter_group}
         if len(letter_group_words_valid) > 0:
-            letter_group_bits = math.ceil(math.log(len(letter_group_words_valid), 2))
+            letter_group_bits = math.log(len(letter_group_words_valid) + 1, 2)
         else:
             letter_group_bits = 0
         alternate_group_words_valid = self.words_valid.difference(letter_group_words_valid)
         if len(alternate_group_words_valid) > 0:
-            alternate_group_bits = math.ceil(math.log(len(alternate_group_words_valid), 2))
+            alternate_group_bits = math.log(len(alternate_group_words_valid) + 1, 2)
         else:
             alternate_group_bits = 0
 
@@ -134,6 +135,7 @@ class wordle_tree:
         self.subtree_large = wordle_tree(large_subtree_letters, alternate_group_words_valid, self)
         self.tree_letter_group = letter_group
         self.tree_split_position = position
+        self.leaf = False
         self.update_bits_minimum()
 
     def create_depth_2_trees(self):
@@ -154,14 +156,14 @@ class wordle_tree:
                     letter_freq_1 = Counter([word[pos_1] for word in self.words_valid])
                     letter_set_1 = {pair[0] for pair in letter_freq_1.most_common(math.ceil(len(self.letters[pos_1])/2))}
                     done = False
-                    overhead_split_0 = self.tree_pos_overhead() + len(self.letters[pos_0]) + (math.floor(math.log(len(self.words_valid), 2)) + 1)
+                    overhead_split_0 = self.tree_pos_overhead() + len(self.letters[pos_0]) + math.log(len(self.words_valid) + 1, 2)
                     overhead_split_1_always = self.tree_pos_overhead() + len(self.letters[pos_1]) # not including bits from num_words encoding
                     overhead_leaves = 3 * self.tree_pos_overhead()
                     overhead_always = overhead_split_0 + overhead_split_1_always + overhead_leaves + 1 # top level always has 1 extra bit
                     if overhead_always < overall_min_bits:
                         start_ent = self.bit_cross_section(letter_set_0, letter_set_1, pos_0, pos_1)
                         continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0]
-                        min_bits = overhead_always + start_ent + math.floor(math.log(len(continuing_words), 2))
+                        min_bits = overhead_always + start_ent + math.log(len(continuing_words) + 1, 2)
                         while not done:
                             done = True
 
@@ -171,7 +173,7 @@ class wordle_tree:
                                 letter_set_0_extended = letter_set_0.copy().union([new_let_0])
                                 ent_score_0 = self.bit_cross_section(letter_set_0_extended, letter_set_1, pos_0, pos_1)
                                 continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0_extended]
-                                ent_score_0 = ent_score_0 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
+                                ent_score_0 = ent_score_0 + overhead_always + math.log(len(continuing_words) + 1, 2)
                                 if ent_score_0 < best_ent_score_0:
                                     best_new_let_0 = new_let_0
                                     best_ent_score_0 = ent_score_0
@@ -183,7 +185,7 @@ class wordle_tree:
                                 letter_set_1_extended = letter_set_1.copy().union([new_let_1])
                                 ent_score_1 = self.bit_cross_section(letter_set_0, letter_set_1_extended, pos_0, pos_1)
                                 continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0]
-                                ent_score_1 = ent_score_1 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
+                                ent_score_1 = ent_score_1 + overhead_always + math.log(len(continuing_words) + 1, 2)
                                 if ent_score_1 < best_ent_score_1:
                                     best_ent_score_1 = ent_score_1
                                     best_let_1 = new_let_1
@@ -205,7 +207,7 @@ class wordle_tree:
                                     ent_score_0 = self.bit_cross_section(letter_set_0_reduced, letter_set_1, pos_0, pos_1)
                                     continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0_reduced] # occasional error
                                     if len(continuing_words) > 0:
-                                        ent_score_0 = ent_score_0 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
+                                        ent_score_0 = ent_score_0 + overhead_always + math.log(len(continuing_words) + 1, 2)
                                     else: 
                                         ent_score_0 = ent_score_0 + overhead_always + 2
                                     if ent_score_0 < best_ent_score_0:
@@ -222,7 +224,7 @@ class wordle_tree:
                                 letter_set_1_reduced = letter_set_1.copy().difference([new_let_1])
                                 ent_score_1 = self.bit_cross_section(letter_set_0, letter_set_1_reduced, pos_0, pos_1)
                                 continuing_words = [word for word in self.words_valid if word[pos_0] in letter_set_0]
-                                ent_score_1 = ent_score_1 + overhead_always + (math.floor(math.log(len(continuing_words), 2)) + 1)
+                                ent_score_1 = ent_score_1 + overhead_always + math.log(len(continuing_words) + 1, 2)
                                 if ent_score_1 < best_ent_score_1:
                                     best_ent_score_1 = ent_score_1
                                     best_let_1 = new_let_1
@@ -261,7 +263,7 @@ class wordle_tree:
                                                     self.possibilities,
                                                     words_sublist_count,
                                                     len(letter_group) * self.possibilities / len(self.letters[i]))
-                subtree_bit_count = subtree_bit_count + (6 + 1) + self.tree_pos_overhead() + len(self.letters[i]) + math.floor(math.log(len(self.words_valid), 2)) + 1
+                subtree_bit_count = subtree_bit_count + (6 + 1) + self.tree_pos_overhead() + len(self.letters[i]) + math.log(len(self.words_valid) + 1, 2)
                 if subtree_bit_count < min_bits:
                    # print(i, letter_group, words_sublist_count)
                     min_bits = subtree_bit_count
@@ -272,14 +274,14 @@ class wordle_tree:
             self.create_subtree(letter_group_set, index_best)
           #  assert min_bits == self.bits_minimum, "Predicted min_bits was wrong! Predicted {}, actual {}, len(self.words_valid) {}".format(min_bits, self.bits_minimum, len(self.words_valid))
         else:
-            self.done = True
+            self.set_done()
 
     def bits_overhead(self):
         #position split + letters_splitting + num_words to subtree_small + 1 (to cap the string)
-        return self.tree_pos_overhead() + len(self.letters[self.tree_split_position]) + math.floor(math.log(len(self.words_valid), 2)) + 1
+        return self.tree_pos_overhead() + len(self.letters[self.tree_split_position]) + math.log(len(self.words_valid) + 1, 2)
 
     def update_bits_minimum(self):
-        bits_subtrees = self.subtree_small.bits_minimum + self.subtree_large.bits_minimum - 1
+        bits_subtrees = self.subtree_small.bits_minimum + self.subtree_large.bits_minimum
         self.bits_minimum = self.bits_overhead() + bits_subtrees
         if self.parent:
             self.parent.update_bits_minimum()

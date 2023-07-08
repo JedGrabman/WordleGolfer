@@ -58,6 +58,11 @@ def words_to_indexes(letter_groups, words, place_per_position):
 
 #(subtree_large)(subtree_small)(words in subtree_small)(letter_flags)(split_position)
 #1(words_encoding)(leaf flag)
+# Note that the number of bits in the tree encoding may be slightly smaller than the tree.bits_minimum
+# This appears to be because when the value of code is very small, the impact of adding a small vs. large 
+# code_words value can meaningfully change log(code + code_words). For testing purposes, this effect can be
+# eliminated by setting a large code value and subtracting off its impact on the log of the result
+# e.g. (tree_encoder(tree, code = 2**10) - 10) is robust
 def tree_encoder(tree, code = 0):
     if tree.subtree_large is None:
         words_encoding = encode_words(tree.letters, tree.words_valid)
@@ -114,6 +119,10 @@ while not tree.done:
 tree_code = tree_encoder(tree)
 tree_code_123 = encode_123(tree_code)
 
-print(math.ceil(math.log(tree_code, 2))) # 81462 for utilities.get_full_tree()
-print(math.ceil(math.log(tree_code, 123))) # 11734
+print(math.ceil(math.log(tree_code, 2))) # 81181 for utilities.get_full_tree()
+print(math.ceil(math.log(tree_code, 123))) # 11694
 print(tree_code_123)
+#Note that '\x1b[' does not render when printing (at least in visual studio).
+# you can however split on it:
+#for x in(tree_code_123.split('\x1b[')): print(x)
+# '\x1b[' == '['
