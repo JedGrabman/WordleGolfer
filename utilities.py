@@ -78,13 +78,13 @@ def tree_dict_try_update(tree, tree_dict, reconstruct_trees = True):
             if subtree_large_letters not in tree_dict:
                 tree_dict_insert_or_update(tree, tree_dict)
             if tree.subtree_large.bits_minimum > tree_dict[subtree_large_letters][0]:
-                tree_constructor(tree.subtree_large)
+                tree_constructor(tree.subtree_large, tree_dict)
 
             subtree_small_letters = flatten_tree_letters(tree)
             if subtree_small_letters not in tree_dict:
                 tree_dict_insert_or_update(tree, tree_dict)
             if tree.subtree_small.bits_minimum > tree_dict[subtree_small_letters][0]:
-                tree_constructor(tree.subtree_small)
+                tree_constructor(tree.subtree_small, tree_dict)
 
     tree_dict_insert_or_update(tree, tree_dict)
     bits_min_end = tree.bits_minimum
@@ -108,7 +108,7 @@ def tree_dict_insert_or_update(tree, tree_dict):
 def get_full_tree():
     words = get_wordle_words()
     tree = wordle_tree([set('abcdefghijklmnopqrstuvwxyz') for _ in range(5)], {word for word in words})
-    tree_constructor(tree)
+    tree_constructor(tree, use_default_tree_dict = True)
     return tree
 
 def trim_tree(tree):
